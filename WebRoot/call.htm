@@ -1,0 +1,297 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title></title>
+<link href="call-center/CC_StyleSheet.css" rel="stylesheet" type="text/css" />
+<script src="Scripts/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script src="Scripts/json.js" type="text/javascript"></script>
+<script language="javascript" type="text/javascript">
+    //呼叫中心WEB地址
+    var url = "http://130.10.8.215:8080/API/CCHandler.ashx?jsoncallback=?";
+    //分机号   $("#txtExtdID").val()
+    var extid = "201";
+    jQuery(function ($) {
+    	//通过 左上方呼叫按钮 呼叫，呼叫号码需要手动输入
+		//分机外拨：
+		//参数名称		参数取值	是否必填	取值说明
+		//action	“connect”	必填			系统设定
+		//extid			分机			必填			工位对应的分机号码，
+		//outerid		外拨电话号码	必填		要拨打的电话号码，手机与座机
+        $('.telpan-connect').click(function (e) {
+          if ($("#txtCode").val().length > 0) {
+                var action = "connect";
+                var outerid = $("#txtCode").val(); //呼叫号码
+                $.getJSON(url, { action: action, extid: extid, outerid: outerid }, function (data) {
+                    $("#txtCode").attr("value", outerid + "," + data.Message + "," + data.State);
+                });
+            }
+        });
+		//通过 底部呼叫按钮 进行呼叫，呼叫号码为按钮默认的
+		//分机外拨：
+		//参数名称		参数取值	是否必填	取值说明
+		//action	“connect”	必填			系统设定
+		//extid			分机			必填			工位对应的分机号码，
+		//outerid		外拨电话号码	必填		要拨打的电话号码，手机与座机
+        $('.btn-call').click(function (e) {
+            if (extid == "") {
+                alert("请输入您的分机");
+                return;
+            }
+            var action = "connect";
+            var outerid = "18519704673"; //呼叫号码$(this).attr("outerid-value") 18610621282
+            var obj = $(this).children("span"); //回显
+            $.getJSON(url, { action: action, extid: extid, outerid: outerid }, function (data) { obj.html(outerid +","+data.Message+"," + data.State); });
+        });
+		
+
+		//挂起、恢复
+		//分机挂起
+		//参数名称		参数取值		是否必填	取值说明
+		//action		“suspend”	必填			系统设定
+		//extid			分机				必填			工位对应的分机号码，
+		//分机取消挂起
+		//参数名称		参数取值		是否必填	取值说明
+		//action		“resume”	必填			系统设定
+		//extid			分机				必填			工位对应的分机号码，
+        $('.telpan-suspend').click(function (e) {
+            if (extid == "") {
+                alert("请输入您的分机");
+                return;
+            }
+
+            var action;
+            if (telflag == 0) {
+                action = "suspend";
+                telflag = 1;
+            }
+            else {
+                action = "resume";
+                telflag = 0;
+            }
+            $.getJSON(url, { action: action, extid: extid }, function (data) { $("#txtCode").attr("value", data.Message); });
+        });
+		//挂断分机上的所有通话
+		//参数名称	参数取值	是否必填	取值说明
+		//action	“clear”	必填	系统设定
+		//extid	分机	必填	工位对应的分机号码，
+        $('.telpan-clear').click(function (e) {
+            if (extid == "") {
+                alert("请输入您的分机");
+                return;
+            }
+            var action = "clear";
+            $.getJSON(url, { action: action, extid: extid }, function (data) { $("#txtCode").attr("value", data.Message); });
+        });
+
+		//清除
+        $(".telpan-back").click(function () {
+            if (checkcode($("#txtCode").val())) {
+                $("#txtCode").attr("value", ''); //清空内容  
+            }
+            else {
+                $("#txtCode").attr("value", $("#txtCode").val().replace(/.$/, ''));
+            }
+        });
+		//检查状态
+		//查询分机状态
+        $('.telpan-state').click(function (e) {
+            checkExtState();
+        });
+
+        var titHeight = $(".tiphead-header").height();
+		//来电提示框
+		//分机来电查询
+        $("#tipfloat-close").click(function () {
+            clearTimeout(titleScrollID);
+            window.document.title = oldTitle;
+            $(".tipfloat").animate({ height: titHeight - 50 }, 1000, function () {
+                $(".tipfloat").hide();
+            });
+        });
+
+        init();
+    });
+
+var telflag = 0;
+var visitorid = 0;
+var msg = "您有一个新的来电";
+var titleScrollID;
+var oldTitle = window.document.title;
+function init() {
+    setInterval("checkVister()", 10000);
+}
+
+//分机来电查询
+//参数名称	参数取值	是否必填	取值说明
+//action	“queryvister”	必填	系统设定
+//extid	分机	必填	工位对应的分机号码，
+function checkVister() {
+    var extid = $("#txtExtdID").val(); //分机号
+    if (extid == "") {      
+        return;
+    }
+    var action = "queryvister";
+    $.getJSON(url, { action: action, extid: extid }, function (data) {
+        if ((data.State != "0") && (data.State != "no") && (visitorid != data.State)) {
+            visitorid = data.State;
+            scrollTitle();
+            alert(data.Message);
+            $(".tipfloat-body")[0].innerHTML = data.Message;
+            $(".tipfloat").show();
+            $(".tipfloat").animate({ height: "120px" });
+        }
+    });
+}
+
+function scrollTitle() {
+    window.document.title = msg
+    msg = msg.substring(1, msg.length) + msg.substring(0, 1)
+    titleScrollID = setTimeout("scrollTitle()", 200)
+} 
+
+function BtnDialPad_onclick(num) {
+    if ($("#txtCode").val().length < 16) {
+        if (checkcode($("#txtCode").val())) {
+            $("#txtCode").attr("value", ''); //清空内容  
+        }
+        $("#txtCode").attr("value", $("#txtCode").val() + num);
+    }
+}
+
+//查询分机状态
+//参数名称	参数取值	是否必填	取值说明
+//action	“queryext”	必填	系统设定
+//extid	分机	必填	工位对应的分机号码，
+function checkExtState() {
+    if (extid == "") {
+        alert("请输入您的分机");
+        return;
+    }
+    var action = "queryext";
+    $.getJSON(url, { action: action, extid: extid }, function (data) {
+        $("#txtCode").attr("value", data.Message);
+    });
+}
+
+function checkcode(str) {
+    strcheck = "1234567890*#";
+    for (i = 0; i < str.length; i++) {
+        if (strcheck.indexOf(str.charAt(i)) < 0) {
+            return true;
+            break;
+        }
+    }
+    return false;
+}
+
+function cleartxt() {
+    $("#txtCode").attr("value", ''); //清空内容  
+}
+</script>
+</head>
+<body>
+<TABLE BORDER=1 CELLPADDING=0 CELLSPACING=0 style="width:210px;margin-top: 9px;" align="center">
+	     <TR>
+		<td style="background-color: Gainsboro;">  
+<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 style="width:210px;margin-top: 9px;" align="center">
+	     <TR>
+		<TD height="49" align="center">	
+            请输入您的分机:<input type="text" size="20" style="height:20px; width:58px; margin-bottom: 9px;" id="txtExtdID" value=""></TD>
+	    </TR>
+  </TABLE>  
+  <hr />
+<TABLE BORDER=0 CELLPADDING=0 align="center" CELLSPACING=0 style="background-image: url('images/telpan_04.gif'); background-repeat: no-repeat;width:190px;margin-top: 9px;">
+	     <TR>
+		<TD height="49" align="center">	
+            请输入您呼叫的号码:<input type="text" size="20" title="222222" style="border-style: 1px; height:20px; width:158px; margin-bottom: 9px;" id="txtCode"></TD>
+	    </TR>
+  </TABLE>  
+ <hr />     
+      <TABLE WIDTH=185 BORDER=0 CELLPADDING=0 CELLSPACING=0 align="center" >
+	<TR>
+		<TD>
+			<a href="#" class="telpan-connect"><IMG border="0" SRC="images/callpan_1.gif" WIDTH=62 HEIGHT=62 ALT=""></a></TD>
+		<TD>
+			<a href="#" class="telpan-state"><IMG border="0" SRC="images/callpan_2.gif" WIDTH=61 HEIGHT=62 ALT=""></a></TD>
+		<TD>
+			<a href="#" class="telpan-back"><IMG border="0" SRC="images/callpan_3.gif" WIDTH=62 HEIGHT=62 ALT=""></a></TD>
+	</TR>
+	<TR>
+		<TD>
+			<a href="#" class="telpan-suspend"><IMG border="0" SRC="images/callpan_4.gif" WIDTH=62 HEIGHT=40 ALT=""></a></TD>
+		<TD>
+			<a href="#" class="telpan-state"><IMG border="0" SRC="images/callpan_5.gif" WIDTH=61 HEIGHT=40 ALT=""></TD>
+		<TD>
+			<a href="#" class="telpan-clear"><IMG border="0" SRC="images/callpan_6.gif" WIDTH=62 HEIGHT=40 ALT=""></a></TD>
+	</TR>
+	<TR>
+		<TD>
+			<a href="#" class="telpan-suspend"><IMG border="0" SRC="images/callpan_7.gif" WIDTH=62 HEIGHT=51 ALT=""></a></TD>
+		<TD>
+			<IMG SRC="images/callpan_8.gif" WIDTH=61 HEIGHT=51 ALT=""></TD>
+		<TD>
+			<a href="#" class="telpan-clear"><IMG  border="0" SRC="images/callpan_9.gif" WIDTH=62 HEIGHT=51 ALT=""></a></TD>
+	</TR>
+	<TR>
+		<TD>
+			<a href="#"   onClick="return BtnDialPad_onclick('1')"><IMG border="0" SRC="images/callpan_10.gif" WIDTH=62 HEIGHT=50 ALT=""></a></TD>
+		<TD>
+			<a href="#"   onClick="return BtnDialPad_onclick('2')"><IMG border="0" SRC="images/callpan_11.gif" WIDTH=61 HEIGHT=50 ALT=""></a></TD>
+		<TD>
+			<a href="#"   onClick="return BtnDialPad_onclick('3')"><IMG border="0" SRC="images/callpan_12.gif" WIDTH=62 HEIGHT=50 ALT=""></a></TD>
+	</TR>
+	<TR>
+		<TD>
+			<a href="#"   onClick="return BtnDialPad_onclick('4')"><IMG border="0" SRC="images/callpan_13.gif" WIDTH=62 HEIGHT=51 ALT=""></a></TD>
+		<TD>
+			<a href="#"   onClick="return BtnDialPad_onclick('5')"><IMG border="0" SRC="images/callpan_14.gif" WIDTH=61 HEIGHT=51 ALT=""></a></TD>
+		<TD>
+			<a href="#"   onClick="return BtnDialPad_onclick('6')"><IMG border="0" SRC="images/callpan_15.gif" WIDTH=62 HEIGHT=51 ALT=""></a></TD>
+	</TR>
+	<TR>
+		<TD>
+			<a href="#"   onClick="return BtnDialPad_onclick('7')"><IMG border="0" SRC="images/callpan_16.gif" WIDTH=62 HEIGHT=51 ALT=""></a></TD>
+		<TD>
+			<a href="#"   onClick="return BtnDialPad_onclick('8')"><IMG border="0" SRC="images/callpan_17.gif" WIDTH=61 HEIGHT=51 ALT=""></a></TD>
+		<TD>
+			<a href="#"   onClick="return BtnDialPad_onclick('9')"><IMG border="0" SRC="images/callpan_18.gif" WIDTH=62 HEIGHT=51 ALT=""></a></TD>
+	</TR>
+	<TR>
+		<TD>
+			<a href="#"   onClick="return BtnDialPad_onclick('*')"><IMG border="0" SRC="images/callpan_19.gif" WIDTH=62 HEIGHT=51 ALT=""></a></TD>
+		<TD>
+			<a href="#"   onClick="return BtnDialPad_onclick('0')"><IMG border="0" SRC="images/callpan_20.gif" WIDTH=61 HEIGHT=51 ALT=""></a></TD>
+		<TD>
+			<a href="#"   onClick="return BtnDialPad_onclick('#')"><IMG border="0" SRC="images/callpan_21.gif" WIDTH=62 HEIGHT=51 ALT=""></a></TD>
+	</TR>
+</TABLE>
+<hr />
+<TABLE BORDER=0 CELLPADDING=0 align="center" CELLSPACING=0 style="background-image: url('images/telpan_04.gif'); background-repeat: no-repeat;width:190px;margin-top: 9px;">
+	     <TR>
+		<TD height="49" align="center">			
+			<a class="call btn-call" href="#"  outerid-value="18519704673"><i class="icon-headphones"></i><span>呼叫18519704673</span></a></TD>
+		<TD height="49" align="center">		
+			<a class="call call-green btn-call" href="#" outerid-value="18519704673"><i class="icon-headphones icon-white"></i> <span>呼叫18519704673</span></a>
+		</TD>
+		<TD height="49" align="center">		
+			<a class="call call-red btn-call" href="#"  outerid-value="18519704673"><i class="icon-headphones icon-white"></i><span>呼叫18519704673</span></a>
+		</TD>
+		<TD height="49" align="center">		
+			<a class="call call-orange btn-call" href="#" outerid-value="18519704673"><i class="icon-headphones icon-white"></i><span>呼叫18519704673</span></a>
+		</TD>
+	    </TR>
+  </TABLE>
+   <hr />
+</td>
+	    </TR>
+ </TABLE>
+
+	<div class="tipfloat">
+	<div class="tiphead-header">
+	<b>来电提示框</b><button type="button" class="close" id="tipfloat-close">×</button>
+	</div>
+	<div class="tipfloat-body">				
+	</div>
+</div>
+</body>
+</html>
